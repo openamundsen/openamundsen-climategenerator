@@ -131,7 +131,7 @@ class ClimateGenerator:
 
         if self.config.report_file is not None:
             from .report import generate_report
-            generate_report(self, self.config.report_file)
+            generate_report(self)
 
         return self.data_sim
 

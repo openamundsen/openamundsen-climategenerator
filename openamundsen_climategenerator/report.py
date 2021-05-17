@@ -51,7 +51,7 @@ def save_svg(fig):
     return svg_data
 
 
-def generate_report(cg, filename):
+def generate_report(cg):
     data_obs = cg.data_obs
     data_sim = cg.data_sim
     ref_station = cg.config.reference_station
@@ -73,6 +73,11 @@ def generate_report(cg, filename):
     color_sim = colors[1]
 
     html_body = '<h1 class="text-3xl font-bold text-gray-900">Climate Generator Report</h1>\n'
+
+    html_body += f'<h2 class="text-2xl font-bold text-gray-900 mt-4">Configuration</h2>\n'
+    html_body += '<pre><code class="text-sm">\n'
+    html_body += str(cg.config)
+    html_body += '</code></pre>\n'
 
     plt.close('all')
 
@@ -136,5 +141,5 @@ def generate_report(cg, filename):
             html_body += '</div>\n'
 
     html = HTML.format(body=html_body)
-    with open(filename, 'w') as f:
+    with open(cg.config.report_file, 'w') as f:
         f.write(html)
