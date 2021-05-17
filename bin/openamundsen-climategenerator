@@ -1,0 +1,18 @@
+#!/usr/bin/env python3
+#
+# Command line interface for the climate generator.
+# Usage: openamundsen-climategenerator <config_file>
+
+import argparse
+import openamundsen_climategenerator as oacg
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('config_file', help='configuration file')
+    args = parser.parse_args()
+
+    config = oacg.read_config(args.config_file)
+    cg = oacg.ClimateGenerator(config)
+    cg.initialize()
+    cg.run()
