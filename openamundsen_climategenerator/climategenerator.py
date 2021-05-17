@@ -4,6 +4,7 @@ import pandas as pd
 from pathlib import Path
 import scipy.stats
 import tempfile
+import warnings
 import xarray as xr
 from .conf import parse_config
 
@@ -110,8 +111,11 @@ class ClimateGenerator:
         self._assign_slices_obs()
 
         ref_data_sliced = self.data_obs_sliced.loc[self.config.reference_station, :, :, :, :]
-        self.ref_obs_data_slicemean = ref_data_sliced.mean('slice_timestep')
-        self.ref_obs_data_slicemean_yearmean = self.ref_obs_data_slicemean.mean('year')
+
+        with warnings.catch_warnings():
+            warnings.filterwarnings('ignore', 'Mean of empty slice', RuntimeWarning)
+            self.ref_obs_data_slicemean = ref_data_sliced.mean('slice_timestep')
+            self.ref_obs_data_slicemean_yearmean = self.ref_obs_data_slicemean.mean('year')
 
         self._calc_correlations()
 
