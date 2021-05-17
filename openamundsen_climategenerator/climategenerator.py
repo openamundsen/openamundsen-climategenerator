@@ -429,7 +429,7 @@ class ClimateGenerator:
 
             if output_format == 'netcdf':
                 filename = f'{output_dir}/{station}.nc'
-                print(f'Writing {filename}')
+                print(f'Writing output file {filename}')
                 data_station.attrs['station_name'] = str(data_station.station_name.values)
                 data_station = data_station.drop_vars('station_name')
                 data_station.to_netcdf(filename)
@@ -441,7 +441,7 @@ class ClimateGenerator:
                 )
 
                 filename = f'{output_dir}/{station}.csv'
-                print(f'Writing {filename}')
+                print(f'Writing output file {filename}')
                 df.to_csv(filename, float_format='%g')
 
             if output_format == 'csv':
