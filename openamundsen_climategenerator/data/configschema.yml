@@ -1,0 +1,94 @@
+obs_start_date:
+  type: datetime
+  coerce: datetime
+  required: true
+
+obs_end_date:
+  type:
+    - string
+    - date
+    - datetime
+  required: true
+
+sim_start_date:
+  type: datetime
+  coerce: datetime
+  required: true
+
+sim_end_date:
+  type:
+    - string
+    - date
+    - datetime
+  # no coercion here, this has to be handled later in case the end hour is not set
+  required: true
+
+timestep:
+  type: string
+  default: H
+
+crs:
+  type: string
+  nullable: true
+  default:
+
+input_dir:
+  type: string
+
+input_format:
+  type: string
+  allowed:
+    - netcdf
+    - csv
+  default: netcdf
+
+output_dir:
+  type: string
+  required: true
+  nullable: true
+
+temperature_change:
+  type: number
+  required: true
+
+precipitation_change:
+  type: dict
+  default: {}
+  schema:
+    MAM:
+      type: number
+      default: 1.
+    JJA:
+      type: number
+      default: 1.
+    SON:
+      type: number
+      default: 1.
+    DJF:
+      type: number
+      default: 1.
+
+slice_length: # slice length in days
+  type: integer
+  default: 7
+  min: 1
+
+max_slice_shift:
+  type: integer
+  default: 0
+  min: 0
+
+ref_station:
+  type: string
+  nullable: true
+  default:
+
+report_file:
+  type: string
+  nullable: true
+  default:
+
+random_seed:
+  type: integer
+  nullable: true
+  default:
