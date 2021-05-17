@@ -78,7 +78,7 @@ max_slice_shift:
   default: 0
   min: 0
 
-ref_station:
+reference_station:
   type: string
   nullable: true
   default:

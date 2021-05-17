@@ -78,9 +78,21 @@ class ClimateGenerator:
         data_obs = model.meteo.copy()
         data_obs = data_obs[['station_name', 'lon', 'lat', 'alt'] + self.params]
 
-        if self.config.ref_station is None:
-            num_vals = (data_obs.temp.notnull() & data_obs.precip.notnull()).sum('time')
-            self.config.ref_station = str(num_vals.station[num_vals.argmax()].values)
+        num_temp_precip_vals = (data_obs.temp.notnull() & data_obs.precip.notnull()).sum('time')
+        if self.config.reference_station is None:
+            self.config.reference_station = str(num_temp_precip_vals.station[num_temp_precip_vals.argmax()].values)
+            print(f'Selecting reference station: {self.config.reference_station}')
+        else:
+            if self.config.reference_station not in data_obs.station:
+                raise ValueError(f'Invalid reference station "{self.config.reference_station}"')
+
+        ref_station_coverage_perc = (
+            100 *
+            num_temp_precip_vals.loc[self.config.reference_station].values
+            / len(data_obs.time)
+        )
+        print(f'Reference station has {ref_station_coverage_perc:.2f}% combined temperature/'
+              'precipitation coverage during the observation period')
 
         obs_years = data_obs.time.to_index().year.unique()
         num_slices_per_year = 365 // self.config.slice_length
@@ -97,7 +109,7 @@ class ClimateGenerator:
 
         self._assign_slices_obs()
 
-        ref_data_sliced = self.data_obs_sliced.loc[self.config.ref_station, :, :, :, :]
+        ref_data_sliced = self.data_obs_sliced.loc[self.config.reference_station, :, :, :, :]
         self.ref_obs_data_slicemean = ref_data_sliced.mean('slice_timestep')
         self.ref_obs_data_slicemean_yearmean = self.ref_obs_data_slicemean.mean('year')
 
@@ -197,6 +209,10 @@ class ClimateGenerator:
             linreg_x = self.ref_obs_data_slicemean.loc[:, 'temp', slice_num]
             linreg_y = self.ref_obs_data_slicemean.loc[:, 'precip', slice_num]
             pos = np.isfinite(linreg_x) & np.isfinite(linreg_y)
+
+            if not pos.any():
+                raise ClimateGeneratorError('Insufficient temperature and/or precipitation data. '
+                                            'Please choose a different reference station.')
 
             slope, intercept, _, _, _ = scipy.stats.linregress(linreg_x[pos], linreg_y[pos])
             temp_precip_linfits[slice_num, :] = slope, intercept
@@ -446,3 +462,7 @@ class ClimateGenerator:
                     ),
                 )
                 meta.to_csv(f'{output_dir}/stations.csv')
+
+
+class ClimateGeneratorError(Exception):
+    pass

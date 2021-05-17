@@ -54,7 +54,7 @@ def save_svg(fig):
 def generate_report(cg, filename):
     data_obs = cg.data_obs
     data_sim = cg.data_sim
-    ref_station = cg.config.ref_station
+    ref_station = cg.config.reference_station
     stations = list(cg.stations)
     stations.remove(ref_station)
     stations.sort()
