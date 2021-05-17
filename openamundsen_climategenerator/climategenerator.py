@@ -95,11 +95,11 @@ class ClimateGenerator:
         self.num_slices_per_year = num_slices_per_year
         self.num_timesteps_per_slice = num_timesteps_per_slice
 
-        self.data_sliced = self._assign_slices_obs()
+        self._assign_slices_obs()
 
-        ref_data_sliced = self.data_sliced.loc[self.config.ref_station, :, :, :, :]
-        self.ref_data_mean_per_year_and_slice = ref_data_sliced.mean('slice_timestep')
-        self.ref_data_mean_per_slice = self.ref_data_mean_per_year_and_slice.mean('year')
+        ref_data_sliced = self.data_obs_sliced.loc[self.config.ref_station, :, :, :, :]
+        self.ref_obs_data_slicemean = ref_data_sliced.mean('slice_timestep')
+        self.ref_obs_data_slicemean_yearmean = self.ref_obs_data_slicemean.mean('year')
 
         self._calc_correlations()
 
@@ -123,7 +123,7 @@ class ClimateGenerator:
         num_slices_per_year = self.num_slices_per_year
         num_timesteps_per_slice = self.num_timesteps_per_slice
 
-        data_sliced = xr.DataArray(
+        data_obs_sliced = xr.DataArray(
             np.full(
                 (
                     len(self.stations),
@@ -168,7 +168,9 @@ class ClimateGenerator:
 
                 data_cur = data_cur[:, :(num_slices_per_year * num_timesteps_per_slice)]  # e.g. for 7-day slices, remove last 1 or 2 (in a leap year) days
                 data_cur = data_cur.reshape((len(self.params), num_slices_per_year, num_timesteps_per_slice))
-                data_sliced.loc[station, year, :, :, :] = data_cur
+                data_obs_sliced.loc[station, year, :, :, :] = data_cur
+
+        self.data_obs_sliced = data_obs_sliced
 
         # Assign a month to each slice (take the slice center date)
         # (required for the seasonal precipitation adjustment)
@@ -186,27 +188,25 @@ class ClimateGenerator:
         slice_center_dates = slice_dates[:, slice_dates.shape[-1] // 2]
         self.slice_months = pd.to_datetime(slice_center_dates).month
 
-        return data_sliced
-
     def _calc_correlations(self):
         # Compute correlation between mean temperature and precipitation for all slices
         temp_precip_linfits = np.zeros((self.num_slices_per_year, 2))
         temp_std = np.zeros(self.num_slices_per_year)
         precip_std = np.zeros(self.num_slices_per_year)
         for slice_num in range(self.num_slices_per_year):
-            linreg_x = self.ref_data_mean_per_year_and_slice.loc[:, 'temp', slice_num]
-            linreg_y = self.ref_data_mean_per_year_and_slice.loc[:, 'precip', slice_num]
+            linreg_x = self.ref_obs_data_slicemean.loc[:, 'temp', slice_num]
+            linreg_y = self.ref_obs_data_slicemean.loc[:, 'precip', slice_num]
             pos = np.isfinite(linreg_x) & np.isfinite(linreg_y)
 
             slope, intercept, _, _, _ = scipy.stats.linregress(linreg_x[pos], linreg_y[pos])
             temp_precip_linfits[slice_num, :] = slope, intercept
 
-            temp_std[slice_num] = self.ref_data_mean_per_year_and_slice.loc[
+            temp_std[slice_num] = self.ref_obs_data_slicemean.loc[
                 :,
                 'temp',
                 slice_num,
             ].std()
-            precip_std[slice_num] = self.ref_data_mean_per_year_and_slice.loc[
+            precip_std[slice_num] = self.ref_obs_data_slicemean.loc[
                 :,
                 'precip',
                 slice_num,
@@ -223,24 +223,24 @@ class ClimateGenerator:
         num_slices_per_year = self.num_slices_per_year
 
         random_temp_variation = np.random.normal(size=(num_sim_years, num_slices_per_year))
-        mean_sim_temp_per_year_and_slice = np.zeros((num_sim_years, num_slices_per_year))
-        mean_sim_precip_per_year_and_slice = np.zeros((num_sim_years, num_slices_per_year))
+        ref_sim_temp_slicemean = np.zeros((num_sim_years, num_slices_per_year))
+        ref_sim_precip_slicemean = np.zeros((num_sim_years, num_slices_per_year))
 
         for year_num, year in enumerate(sim_years):
             print(f'Generating reference climate for year {year}')
 
             for slice_num in range(num_slices_per_year):
-                mean_sim_temp_per_year_and_slice[year_num, slice_num] = (
-                    self.ref_data_mean_per_slice.loc['temp', slice_num]
+                ref_sim_temp_slicemean[year_num, slice_num] = (
+                    self.ref_obs_data_slicemean_yearmean.loc['temp', slice_num]
                     + random_temp_variation[year_num, slice_num] * self.temp_std[slice_num]
                     + self.config.temperature_change * (
                         (year - obs_years[-1] - 1) + (slice_num + 1) / num_slices_per_year
                     )
                 )
 
-                mean_sim_precip_per_year_and_slice[year_num, slice_num] = (
+                ref_sim_precip_slicemean[year_num, slice_num] = (
                     self.temp_precip_linfits[slice_num, 0]
-                    * mean_sim_temp_per_year_and_slice[year_num, slice_num]
+                    * ref_sim_temp_slicemean[year_num, slice_num]
                     + self.temp_precip_linfits[slice_num, 1]
                 )
 
@@ -249,13 +249,13 @@ class ClimateGenerator:
         jja_change = self.config.precipitation_change.JJA
         son_change = self.config.precipitation_change.SON
         djf_change = self.config.precipitation_change.DJF
-        mean_sim_precip_per_year_and_slice[:, self.slice_months.isin([3, 4, 5])] *= mam_change
-        mean_sim_precip_per_year_and_slice[:, self.slice_months.isin([6, 7, 8])] *= jja_change
-        mean_sim_precip_per_year_and_slice[:, self.slice_months.isin([9, 10, 11])] *= son_change
-        mean_sim_precip_per_year_and_slice[:, self.slice_months.isin([12, 1, 2])] *= djf_change
+        ref_sim_precip_slicemean[:, self.slice_months.isin([3, 4, 5])] *= mam_change
+        ref_sim_precip_slicemean[:, self.slice_months.isin([6, 7, 8])] *= jja_change
+        ref_sim_precip_slicemean[:, self.slice_months.isin([9, 10, 11])] *= son_change
+        ref_sim_precip_slicemean[:, self.slice_months.isin([12, 1, 2])] *= djf_change
 
-        self.mean_sim_temp_per_year_and_slice = mean_sim_temp_per_year_and_slice
-        self.mean_sim_precip_per_year_and_slice = mean_sim_precip_per_year_and_slice
+        self.ref_sim_temp_slicemean = ref_sim_temp_slicemean
+        self.ref_sim_precip_slicemean = ref_sim_precip_slicemean
 
     def _identify_slices(self):
         slices = {}
@@ -276,20 +276,20 @@ class ClimateGenerator:
                 ]
 
                 target_temp = (
-                    self.mean_sim_temp_per_year_and_slice[year_num, slice_num]
-                    - self.ref_data_mean_per_slice.loc['temp', slice_num]
+                    self.ref_sim_temp_slicemean[year_num, slice_num]
+                    - self.ref_obs_data_slicemean_yearmean.loc['temp', slice_num]
                 ) / self.temp_std[slice_num]
                 target_precip = (
-                    self.mean_sim_precip_per_year_and_slice[year_num, slice_num]
-                    - self.ref_data_mean_per_slice.loc['precip', slice_num]
+                    self.ref_sim_precip_slicemean[year_num, slice_num]
+                    - self.ref_obs_data_slicemean_yearmean.loc['precip', slice_num]
                 ) / self.precip_std[slice_num]
                 temp_candidates = (
-                    self.ref_data_mean_per_year_and_slice.loc[:, 'temp', slice_candidates]
-                    - self.ref_data_mean_per_slice.loc['temp', slice_candidates]
+                    self.ref_obs_data_slicemean.loc[:, 'temp', slice_candidates]
+                    - self.ref_obs_data_slicemean_yearmean.loc['temp', slice_candidates]
                 ) / self.temp_std[slice_candidates]
                 precip_candidates = (
-                    self.ref_data_mean_per_year_and_slice.loc[:, 'precip', slice_candidates]
-                    - self.ref_data_mean_per_slice.loc['precip', slice_candidates]
+                    self.ref_obs_data_slicemean.loc[:, 'precip', slice_candidates]
+                    - self.ref_obs_data_slicemean_yearmean.loc['precip', slice_candidates]
                 ) / self.precip_std[slice_candidates]
 
                 selected_year, selected_slice = min_dist(
@@ -336,7 +336,7 @@ class ClimateGenerator:
 
             for slice_num in range(self.num_slices_per_year):
                 selected_year, selected_slice = self.slices[year][slice_num]
-                data_sim_sliced.values[:, year_num, :, slice_num, :] = self.data_sliced.loc[
+                data_sim_sliced.values[:, year_num, :, slice_num, :] = self.data_obs_sliced.loc[
                     :,
                     selected_year,
                     :,
@@ -417,12 +417,10 @@ class ClimateGenerator:
                 data_station.attrs['station_name'] = str(data_station.station_name.values)
                 data_station = data_station.drop_vars('station_name')
                 data_station.to_netcdf(filename)
-                # XXX precip
             elif output_format == 'csv':
                 df = (
                     data_station[self.params]
                     .to_dataframe()
-                    # .drop(columns=['station'])
                     .dropna(axis=1, how='all')
                 )
 
