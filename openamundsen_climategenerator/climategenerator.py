@@ -29,7 +29,8 @@ cellsize    {resolution}
 
 class ClimateGenerator:
     def __init__(self, config):
-        self.config = parse_config(config)
+        config = parse_config(config)
+        self.config = config
 
         self.sim_dates = pd.date_range(
             start=config.sim_start_date,
