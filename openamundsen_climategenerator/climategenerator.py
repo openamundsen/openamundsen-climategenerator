@@ -49,6 +49,7 @@ class ClimateGenerator:
                     'dir': config.input_dir,
                     'format': config.input_format,
                     'crs': config.crs,
+                    'bounds': 'global',
                 },
             },
 
