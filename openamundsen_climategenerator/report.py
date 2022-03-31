@@ -21,6 +21,14 @@ HTML = '''
 </html>
 '''
 
+PARAM_LABELS = {
+    'air_temperature': 'Air temperature',
+    'precipitation_amount': 'Precipitation',
+    'relative_humidity': 'Relative humidity',
+    'surface_downwelling_shortwave_flux_in_air': 'Global radiation',
+    'wind_speed': 'Wind speed',
+}
+
 
 def resample(data, rule='A', max_missing_frac=1., sum=False):
     all_dates = pd.date_range(
@@ -96,10 +104,14 @@ def generate_report(cg):
             if not data_obs_param.any():
                 continue
 
-            param_label = data_obs[param].attrs['standard_name']
+            param_standard_name = data_obs[param].attrs.get('standard_name')
+            if param_standard_name is not None:
+                param_label = PARAM_LABELS.get(param_standard_name, param_standard_name)
+            else:
+                param_label = param
             html_body += f'<h3 class="text-xl font-bold text-gray-900 mt-4">{param_label}</h3>\n'
 
-            data_param = data_obs_param.append(data_sim_param).reindex(entire_period_dates)
+            data_param = pd.concat([data_obs_param, data_sim_param]).reindex(entire_period_dates)
             data_param_yr = resample(
                 data_param,
                 'A',
@@ -114,7 +126,10 @@ def generate_report(cg):
             df.obs.plot(ax=ax, marker='s', markersize=2, color=color_obs)
             df.sim.plot(ax=ax, marker='s', markersize=2, color=color_sim)
             ax.set_xlabel(None)
-            ax.set_ylabel(f"{data_obs[param].attrs['standard_name']} ({data_obs[param].attrs['units']})")
+            ylabel = param_label
+            if 'units' in data_obs[param].attrs:
+                ylabel += f' ({data_obs[param].attrs["units"]})'
+            ax.set_ylabel(ylabel)
             fig.canvas.draw_idle()
             svg_data = save_svg(fig)
 
