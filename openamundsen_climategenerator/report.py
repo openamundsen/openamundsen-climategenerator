@@ -30,7 +30,7 @@ PARAM_LABELS = {
 }
 
 
-def resample(data, rule='A', max_missing_frac=1., sum=False):
+def resample(data, rule='YE', max_missing_frac=1., sum=False):
     all_dates = pd.date_range(
         start=f'{data.index.year[0]}-01-01',
         end=oa.conf.parse_end_date(f'{data.index.year[-1]}-12-31', data.index.inferred_freq),
@@ -74,7 +74,7 @@ def generate_report(cg):
         end=max(cg.config.obs_end_date, cg.config.sim_end_date),
         freq=cg.config.timestep,
     )
-    num_expected_yr = pd.Series(index=entire_period_dates, data=1).resample('A').sum()
+    num_expected_yr = pd.Series(index=entire_period_dates, data=1).resample('YE').sum()
 
     colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
     color_obs = colors[0]
@@ -114,7 +114,7 @@ def generate_report(cg):
             data_param = pd.concat([data_obs_param, data_sim_param]).reindex(entire_period_dates)
             data_param_yr = resample(
                 data_param,
-                'A',
+                'YE',
                 max_missing_frac=0.05,
                 sum=(param == 'precip'),
             )
@@ -136,7 +136,7 @@ def generate_report(cg):
             html_body += '<div class="w-full lg:flex items-center">\n'
             html_body += f'<div class="w-full lg:w-1/2">{svg_data}</div>\n'
 
-            num_missing_yr = data_param.reindex(entire_period_dates).isna().resample('A').sum()
+            num_missing_yr = data_param.reindex(entire_period_dates).isna().resample('YE').sum()
             perc_missing_yr = 100 * num_missing_yr / num_expected_yr
             plt.close('all')
             fig, ax = plt.subplots(figsize=(5, 3))

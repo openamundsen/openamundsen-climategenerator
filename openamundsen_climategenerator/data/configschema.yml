@@ -25,7 +25,7 @@ sim_end_date:
 
 timestep:
   type: string
-  default: H
+  default: h
 
 crs:
   type: string
