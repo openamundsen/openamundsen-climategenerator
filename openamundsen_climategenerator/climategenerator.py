@@ -407,7 +407,11 @@ class ClimateGenerator:
                 (-2 * num_missing_vals):(-num_missing_vals)
             ]
 
-        data_sim = data_sim.merge(data_sim_da.to_dataset('param'))
+        data_sim = (
+            data_sim
+            .drop_vars(data_sim_da.indexes['param'])
+            .merge(data_sim_da.to_dataset('param'))
+        )
         data_sim = data_sim.sel(time=self.sim_dates)
         self.data_sim = data_sim
 
