@@ -11,7 +11,7 @@ from .conf import parse_config
 
 def min_dist(target_temp, temps, target_precip, precips):
     dists = np.sqrt((temps - target_temp)**2 + (precips - target_precip)**2).values
-    year_idx, slice_idx = np.unravel_index(dists.argmin(), dists.shape)
+    year_idx, slice_idx = np.unravel_index(np.nanargmin(dists), dists.shape)
     selected_year = temps.year.values[year_idx]
     selected_slice = temps.slice.values[slice_idx]
     return (selected_year, selected_slice)
