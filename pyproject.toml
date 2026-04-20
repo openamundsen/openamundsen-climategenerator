@@ -5,6 +5,9 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "openamundsen-climategenerator"
 dynamic = ["version"]
+license = "MIT"
+license-files = ["LICENSE"]
+readme = "README.md"
 dependencies = [
   "numpy",
   "openamundsen",
